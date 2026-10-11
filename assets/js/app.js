@@ -1,6 +1,7 @@
 // Select DOM elements
 
 const menu = document.querySelector(".menu");
+const menuToggle = document.querySelector(".menu-toggle");
 const header = document.querySelector("header");
 const images = document.querySelectorAll(".carousel-img");
 const container = document.querySelector(".container");
@@ -9,6 +10,53 @@ const about = document.querySelector(".about");
 const carouselOverlay = document.querySelectorAll(".carousel-overlay");
 const tvs = document.querySelectorAll(".tv");
 
+// Keep the hero below the fixed navigation, including when the menu wraps.
+const updateMenuHeight = () => {
+  if (menu) {
+    document.documentElement.style.setProperty(
+      "--menu-height",
+      `${menu.offsetHeight}px`,
+    );
+  }
+};
+
+updateMenuHeight();
+if (menu && "ResizeObserver" in window) {
+  new ResizeObserver(updateMenuHeight).observe(menu);
+} else {
+  window.addEventListener("resize", updateMenuHeight);
+}
+
+const setMenuOpen = (isOpen) => {
+  if (!menu || !menuToggle) return;
+
+  menu.classList.toggle("open", isOpen);
+  menuToggle.setAttribute("aria-expanded", String(isOpen));
+  menuToggle.setAttribute("aria-label", isOpen ? "بستن منو" : "باز کردن منو");
+};
+
+menuToggle?.addEventListener("click", () => {
+  setMenuOpen(menuToggle.getAttribute("aria-expanded") !== "true");
+});
+
+menu?.querySelectorAll(".menu-links a").forEach((link) => {
+  link.addEventListener("click", () => setMenuOpen(false));
+});
+
+document.addEventListener("click", (event) => {
+  if (menu?.classList.contains("open") && !menu.contains(event.target)) {
+    setMenuOpen(false);
+  }
+});
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") setMenuOpen(false);
+});
+
+window.addEventListener("resize", () => {
+  if (window.innerWidth > 992) setMenuOpen(false);
+});
+
 // Hide Navbar
 
 let lastScroll = 0;
@@ -16,17 +64,17 @@ let lastScroll = 0;
 window.addEventListener("scroll", () => {
   const currentScroll = window.scrollY;
 
-  const headerHeight = header.offsetHeight;
+  const headerHeight = header?.offsetHeight ?? 0;
 
-  if (currentScroll < headerHeight) {
+  if (!menu) return;
+
+  if (currentScroll < headerHeight || currentScroll < lastScroll) {
     menu.classList.remove("hide");
-  } else {
-    if (currentScroll > lastScroll) {
-      menu.classList.add("hide");
-    } else if (currentScroll === lastScroll) {
-      menu.classList.remove("hide");
-    }
+  } else if (currentScroll > lastScroll) {
+    menu.classList.add("hide");
   }
+
+  lastScroll = currentScroll;
 });
 
 // Carousel
@@ -41,17 +89,19 @@ const showImage = (index) => {
   images.forEach((img) => img.classList.remove("active"));
   carouselOverlay.forEach((logo) => logo.classList.remove("active-logo"));
 
-  images[index].classList.add("active");
-  carouselOverlay[index].classList.add("active-logo");
+  images[index]?.classList.add("active");
+  carouselOverlay[index]?.classList.add("active-logo");
 };
 
-showImage(currentIndex);
+if (images.length > 0) showImage(currentIndex);
 /**
  * Navigate to the next image.
  * Returns to the first image after the last one.
  */
 
 const nextImage = () => {
+  if (images.length === 0) return;
+
   currentIndex++;
 
   if (currentIndex >= images.length) {
@@ -61,13 +111,15 @@ const nextImage = () => {
   showImage(currentIndex);
 };
 
-// Automatically switch images every 1 seconds
+// Automatically switch images every 1.5 seconds
 
-const autoPlay = setInterval(nextImage, 1500);
+if (images.length > 1) setInterval(nextImage, 1500);
 
 // Scroll event for circles in Positive point
 
 window.addEventListener("scroll", () => {
+  if (!container || circles.length === 0) return;
+
   let scroll = window.scrollY;
 
   let sectionTop = container.offsetTop;
@@ -81,12 +133,8 @@ window.addEventListener("scroll", () => {
 
   const angle = 180 * (1 - progress);
 
-  circles.forEach((circle, index) => {
-    if (index / 2 === 0) {
-      circle.style.transform = `rotate(${angle}deg)`;
-    } else {
-      circle.style.transform = `rotate(${angle}deg)`;
-    }
+  circles.forEach((circle) => {
+    circle.style.transform = `rotate(${angle}deg)`;
   });
 });
 
@@ -94,7 +142,7 @@ window.addEventListener("scroll", () => {
 
 // Show TV's
 
-const observer = new IntersectionObserver(
+const observer = about && "IntersectionObserver" in window && new IntersectionObserver(
   (entries) => {
     entries.forEach((entry) => {
       if (entry.isIntersecting) {
@@ -109,7 +157,8 @@ const observer = new IntersectionObserver(
   },
 );
 
-observer.observe(about);
+observer?.observe(about);
+if (about && !observer) about.classList.add("show");
 
 // TV's Animation
 
